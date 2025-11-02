@@ -1,52 +1,85 @@
-import win32gui
-import time
-import random
-import keyboard
-import tkinter as tk
+'''
+1. made for windows
+2. before running, check desktop->view->show desktop icons
+3. uncheck desktop->view->align icons on the grid
+'''
+
+import win32gui, time, random, keyboard, tkinter as tk
 
 # -------------------- GRID SETTINGS --------------------
-GRID_WIDTH, GRID_HEIGHT = 8, 12      # Grid size
+GRID_WIDTH, GRID_HEIGHT = 8, 12
 ICON_WIDTH, ICON_HEIGHT = 90, 90
-FPS = 1.0
 EMPTY = -1
 HIDDEN_POS = (-1000, -1000)
 
 # -------------------- SPEED SETTINGS --------------------
-INITIAL_FPS = 1        # initial drop interval (seconds)
-SPEEDUP_RATE = 0.9     # decrease in FPS per level
+INITIAL_FPS = 1        
+SPEEDUP_RATE = 0.9     # multiplier
 LINES_PER_LEVEL = 1    # lines to clear to increase speed
 
 current_fps = INITIAL_FPS
 lines_cleared_total = 0
 
+# -------------------- SCORING --------------------
+score = 0
+line_score = {1:100, 2:300, 3:500, 4:800}  # Tetris scoring
 
 # -------------------- ICON POOL --------------------
-ICON_POOL = []       # Icons not currently on the grid
-FALLING_ICONS = []   # Icons used by the current falling piece
-SETTLED_ICONS = []   # Icons currently locked on the grid
+ICON_POOL = []       # stack of icons not currently on the grid
 
 # -------------------- WIN32 --------------------
 LVM_SETITEMPOSITION = 0x1000 + 15
 
 # -------------------- TETRIS SHAPES --------------------
 SHAPES = {
-    1: [[(0,-1),(0,0),(0,1),(0,2)], [(-1,0),(0,0),(1,0),(2,0)]],      # I
-    2: [[(-1,-1),(-1,0),(0,0),(1,0)], [(-1,1),(0,1),(0,0),(0,-1)],
-        [(1,1),(1,0),(0,0),(-1,0)], [(1,-1),(0,-1),(0,0),(0,1)]],      # J
-    3: [[(-1,0),(0,0),(1,0),(1,-1)], [(0,-1),(0,0),(0,1),(1,1)],
-        [(-1,1),(-1,0),(0,0),(1,0)], [(-1,-1),(0,-1),(0,0),(0,1)]],    # L
-    4: [[(0,0),(1,0),(0,1),(1,1)]],                                     # O
-    5: [[(0,0),(1,0),(-1,1),(0,1)], [(-1,0),(-1,1),(0,-1),(0,0)]],     # S
-    6: [[(-1,0),(0,0),(1,0),(0,1)], [(0,-1),(0,0),(1,0),(0,1)],
-        [(-1,0),(0,0),(1,0),(0,-1)], [(-1,0),(0,0),(0,-1),(0,1)]],     # T
-    7: [[(-1,0),(0,0),(0,1),(1,1)], [(0,0),(-1,1),(0,-1),(-1,0)]]      # Z
+    1: [  # I
+        [(0,-1),(0,0),(0,1),(0,2)],   # vertical
+        [(-1,0),(0,0),(1,0),(2,0)]    # horizontal
+    ],
+    
+    2: [  # J
+        [(-1,-1),(-1,0),(0,0),(1,0)],   # 0°
+        [(0,-1),(0,0),(0,1),(-1,1)],    # 90°
+        [(-1,0),(0,0),(1,0),(1,1)],     # 180°
+        [(0,-1),(0,0),(0,1),(1,-1)]     # 270°
+    ],
+    
+    3: [  # L
+        [(-1,0),(0,0),(1,0),(1,-1)],    # 0°
+        [(0,-1),(0,0),(0,1),(1,1)],     # 90°
+        [(-1,0),(0,0),(1,0),(-1,1)],    # 180°
+        [(0,-1),(0,0),(0,1),(-1,-1)]    # 270°
+    ],
+    
+    4: [  # O
+        [(0,0),(1,0),(0,1),(1,1)]       # Only one rotation
+    ],
+    
+    5: [  # S
+        [(0,0),(1,0),(-1,1),(0,1)],     # 0°
+        [(0,-1),(0,0),(1,0),(1,1)]      # 90°
+    ],
+    
+    6: [  # T
+        [(-1,0),(0,0),(1,0),(0,1)],     # 0°
+        [(0,-1),(0,0),(0,1),(1,0)],     # 90°
+        [(-1,0),(0,0),(1,0),(0,-1)],    # 180°
+        [(0,-1),(0,0),(0,1),(-1,0)]     # 270°
+    ],
+    
+    7: [  # Z
+        [(-1,0),(0,0),(0,1),(1,1)],     # 0°
+        [(1,-1),(1,0),(0,0),(0,1)]      # 90°
+    ]
 }
+
 SHAPE_KEYS = list(SHAPES.keys())
 
 # -------------------- GAME STATE --------------------
 GRID = [[EMPTY]*GRID_WIDTH for _ in range(GRID_HEIGHT)]
 
 # -------------------- WIN32 HELPERS --------------------
+# kinda magic
 def get_desktop_listview_hwnd():
     progman = win32gui.FindWindow("Progman", None)
     shelldll = win32gui.FindWindowEx(progman, 0, "SHELLDLL_DefView", None)
@@ -81,7 +114,7 @@ def setup_icons(hwnd):
     
     # Check if enough icons exist
     if total < (GRID_WIDTH * GRID_HEIGHT) + 4:
-        print(f"Not enough desktop icons! Found {total}")
+        print(f"Not enough desktop icons! Found {total}, needed {(GRID_WIDTH * GRID_HEIGHT) + 4}")
         return False
 
     # Pick the game icons from all available icons
@@ -90,10 +123,7 @@ def setup_icons(hwnd):
 
     # Hide all unused icons
     for i in range(total):
-        if i in game_icons:
-            hide_icon(hwnd, i)  # They will be used dynamically
-        else:
-            hide_icon(hwnd, i)  # Unused icons are hidden completely
+        hide_icon(hwnd, i)
 
     print(f"Game icons: {len(game_icons)}, all others are hidden.")
     return True
@@ -101,10 +131,10 @@ def setup_icons(hwnd):
 def show_game_over():
     root = tk.Tk()
     root.title("Tetris")
-    root.geometry("1000x500")
+    root.geometry("400x100")
     root.resizable(False, False)
 
-    label = tk.Label(root, text="GAME OVER", font=("Arial", 24), fg="red")
+    label = tk.Label(root, text="GAME OVER. SCORE = " + str(score), font=("Arial", 14), fg="red")
     label.pack(expand=True)
 
     button = tk.Button(root, text="Exit", command=root.destroy)
@@ -112,12 +142,8 @@ def show_game_over():
 
     root.mainloop()
 
-# -------------------- PIECE HELPERS --------------------
+# -------------------- PIECE FUNCS --------------------
 def new_piece():
-    global ICON_POOL
-    if len(ICON_POOL) < 4:
-        # Refill pool from cleared icons if needed
-        random.shuffle(ICON_POOL)
     icons = [ICON_POOL.pop() for _ in range(4)]
     return {
         "type": random.choice(SHAPE_KEYS),
@@ -188,9 +214,15 @@ def clear_lines(hwnd):
                 move_icon_grid(hwnd, GRID[y][x], x, y)
 
     # Update total lines cleared
-    lines_cleared_total += len(full_rows)
-    return len(full_rows)
+    lines = len(full_rows)
+    lines_cleared_total += lines
 
+    # Scoring for cleared rows
+    if lines > 0:
+        global score
+        score += line_score.get(lines, 0)
+
+    return lines
 
 
 # -------------------- INPUT --------------------
@@ -206,9 +238,50 @@ def rotate(hwnd, piece):
         piece["rotation"] = test["rotation"]
         draw_piece(hwnd, piece)
 
+# ----------------- END SCREEN DISPLAY --------------------
+DIGITS = {
+"0": [(0,0),(1,0),(2,0),(0,1),(2,1),(0,2),(2,2),(0,3),(2,3),(0,4),(1,4),(2,4)],
+"1": [(1,0),(1,1),(1,2),(1,3),(1,4)],
+"2": [(0,0),(1,0),(2,0),(2,1),(0,2),(1,2),(2,2),(0,3),(0,4),(1,4),(2,4)],
+"3": [(0,0),(1,0),(2,0),(2,1),(0,2),(1,2),(2,2),(2,3),(0,4),(1,4),(2,4)],
+"4": [(0,0),(2,0),(0,1),(2,1),(0,2),(1,2),(2,2),(2,3),(2,4)],
+"5": [(0,0),(1,0),(2,0),(0,1),(0,2),(1,2),(2,2),(2,3),(0,4),(1,4),(2,4)],
+"6": [(0,0),(1,0),(2,0),(0,1),(0,2),(1,2),(2,2),(0,3),(2,3),(0,4),(1,4),(2,4)],
+"7": [(0,0),(1,0),(2,0),(2,1),(2,2),(2,3),(2,4)],
+"8": [(0,0),(1,0),(2,0),(0,1),(2,1),(0,2),(1,2),(2,2),(0,3),(2,3),(0,4),(1,4),(2,4)],
+"9": [(0,0),(1,0),(2,0),(0,1),(2,1),(0,2),(1,2),(2,2),(2,3),(0,4),(1,4),(2,4)]
+}
+
+
+def hide_all_icons(hwnd):
+    LVM_GETITEMCOUNT = 0x1000 + 4
+    total = win32gui.SendMessage(hwnd, LVM_GETITEMCOUNT, 0, 0)
+    for i in range(total):
+        hide_icon(hwnd, i)
+
+
+def display_score_icons(hwnd, score):
+    s = str(score)
+
+    total_digits = len(s)
+    icons_needed = total_digits * 15  # ~15 icons per digit
+
+    score_icons = ICON_POOL[:icons_needed]
+    ICON_POOL[:] = ICON_POOL[icons_needed:]
+
+    icon_index = 0
+    base_x = 2   # where on desktop grid digits start
+    base_y = 2
+
+    for digit in s:
+        for (dx, dy) in DIGITS[digit]:
+            move_icon_grid(hwnd, score_icons[icon_index], base_x + dx, base_y + dy)
+            icon_index += 1
+        base_x += 4  # space between digits
+
 # -------------------- MAIN LOOP --------------------
 def run():
-    global current_fps, lines_cleared_total
+    global current_fps, lines_cleared_total, score
 
     hwnd = get_desktop_listview_hwnd()
     if not hwnd:
@@ -226,9 +299,15 @@ def run():
 
     while True:
         # Keyboard input
-        if keyboard.is_pressed("left"): move_horizontal(hwnd, current_piece, -1); time.sleep(0.08)
-        if keyboard.is_pressed("right"): move_horizontal(hwnd, current_piece, 1); time.sleep(0.08)
-        if keyboard.is_pressed("up"): rotate(hwnd, current_piece); time.sleep(0.12)
+        if keyboard.is_pressed("left"): 
+            move_horizontal(hwnd, current_piece, -1)
+            time.sleep(0.08)
+        if keyboard.is_pressed("right"): 
+            move_horizontal(hwnd, current_piece, 1)
+            time.sleep(0.08)
+        if keyboard.is_pressed("up"): 
+            rotate(hwnd, current_piece)
+            time.sleep(0.12)
         if keyboard.is_pressed("down"):
             if not collision(current_piece, 0, 1):
                 current_piece["y"] += 1
@@ -240,6 +319,9 @@ def run():
             if not collision(current_piece, 0, 1):
                 current_piece["y"] += 1
                 draw_piece(hwnd, current_piece)
+                
+                # Soft drop scoring
+                score += 1
             else:
                 # Piece locks
                 lock_piece(hwnd, current_piece)
@@ -259,8 +341,19 @@ def run():
 
                 # Check game over immediately
                 if collision(current_piece):
-                    show_game_over()
+                    # Hide everything first
+                    hide_all_icons(hwnd)
+                    time.sleep(0.3)
+
+                    # Display score as icons
+                    display_score_icons(hwnd, score)
+
+                    # Optional score window — keep or remove
+                    # show_game_over()
+                    # DO NOT SHOW IT NOW - SINCE WE HAVE ICON SCORE.
+                    print(score)
                     return
+
                 
             last = time.time()
 
