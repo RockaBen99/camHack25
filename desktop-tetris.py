@@ -101,10 +101,10 @@ def setup_icons(hwnd):
 def show_game_over():
     root = tk.Tk()
     root.title("Tetris")
-    root.geometry("1000x500")
+    root.geometry("400x100")
     root.resizable(False, False)
 
-    label = tk.Label(root, text="GAME OVER. SCORE = " + str(score), font=("Arial", 24), fg="red")
+    label = tk.Label(root, text="GAME OVER. SCORE = " + str(score), font=("Arial", 14), fg="red")
     label.pack(expand=True)
 
     button = tk.Button(root, text="Exit", command=root.destroy)
@@ -208,6 +208,46 @@ def rotate(hwnd, piece):
         piece["rotation"] = test["rotation"]
         draw_piece(hwnd, piece)
 
+# ----------------- END SCREEN DISPLAY --------------------
+DIGITS = {
+    "0": [(0,0),(1,0),(2,0),(0,1),(2,1),(0,2),(2,2),(0,3),(2,3),(0,4),(1,4),(2,4)],
+    "1": [(1,0),(1,1),(1,2),(1,3),(1,4)],
+    "2": [(0,0),(1,0),(2,0),(2,1),(0,2),(1,2),(2,2),(0,3),(0,4),(1,4),(2,4)],
+    "3": [(0,0),(1,0),(2,0),(2,1),(0,2),(1,2),(2,2),(2,3),(0,4),(1,4),(2,4)],
+    "4": [(0,0),(2,0),(0,1),(2,1),(0,2),(1,2),(2,2),(2,3),(2,4)],
+    "5": [(0,0),(1,0),(2,0),(0,1),(0,2),(1,2),(2,2),(2,3),(0,4),(1,4),(2,4)],
+    "6": [(0,0),(1,0),(2,0),(0,1),(0,2),(1,2),(2,2),(0,3),(2,3),(0,4),(1,4),(2,4)],
+    "7": [(0,0),(1,0),(2,0),(2,1),(1,2),(1,3),(1,4)],
+    "8": [(0,0),(1,0),(2,0),(0,1),(2,1),(1,2),(0,3),(2,3),(0,4),(1,4),(2,4)],
+    "9": [(0,0),(1,0),(2,0),(0,1),(2,1),(1,2),(2,3),(0,4),(1,4),(2,4)]
+}
+
+def hide_all_icons(hwnd):
+    LVM_GETITEMCOUNT = 0x1000 + 4
+    total = win32gui.SendMessage(hwnd, LVM_GETITEMCOUNT, 0, 0)
+    for i in range(total):
+        hide_icon(hwnd, i)
+
+
+def display_score_icons(hwnd, score):
+    s = str(score)
+
+    total_digits = len(s)
+    icons_needed = total_digits * 15  # ~15 icons per digit
+
+    score_icons = ICON_POOL[:icons_needed]
+    ICON_POOL[:] = ICON_POOL[icons_needed:]
+
+    icon_index = 0
+    base_x = 2   # where on desktop grid digits start
+    base_y = 2
+
+    for digit in s:
+        for (dx, dy) in DIGITS[digit]:
+            move_icon_grid(hwnd, score_icons[icon_index], base_x + dx, base_y + dy)
+            icon_index += 1
+        base_x += 4  # space between digits
+
 # -------------------- MAIN LOOP --------------------
 def run():
     global current_fps, lines_cleared_total, score
@@ -270,8 +310,17 @@ def run():
 
                 # Check game over immediately
                 if collision(current_piece):
+                    # Hide everything first
+                    hide_all_icons(hwnd)
+                    time.sleep(0.3)
+
+                    # Display score as icons
+                    display_score_icons(hwnd, score)
+
+                    # Optional score window — keep or remove
                     show_game_over()
                     return
+
                 
             last = time.time()
 
