@@ -20,6 +20,10 @@ LINES_PER_LEVEL = 1    # lines to clear to increase speed
 current_fps = INITIAL_FPS
 lines_cleared_total = 0
 
+# -------------------- SCORING --------------------
+score = 0
+line_score = {1:100, 2:300, 3:500, 4:800}  # Tetris scoring
+
 # -------------------- ICON POOL --------------------
 ICON_POOL = []       # stack of icons not currently on the grid
 
@@ -100,7 +104,7 @@ def show_game_over():
     root.geometry("1000x500")
     root.resizable(False, False)
 
-    label = tk.Label(root, text="GAME OVER", font=("Arial", 24), fg="red")
+    label = tk.Label(root, text="GAME OVER. SCORE = " + str(score), font=("Arial", 24), fg="red")
     label.pack(expand=True)
 
     button = tk.Button(root, text="Exit", command=root.destroy)
@@ -180,8 +184,15 @@ def clear_lines(hwnd):
                 move_icon_grid(hwnd, GRID[y][x], x, y)
 
     # Update total lines cleared
-    lines_cleared_total += len(full_rows)
-    return len(full_rows)
+    lines = len(full_rows)
+    lines_cleared_total += lines
+
+    # Scoring for cleared rows
+    if lines > 0:
+        global score
+        score += line_score.get(lines, 0)
+
+    return lines
 
 
 # -------------------- INPUT --------------------
@@ -199,7 +210,7 @@ def rotate(hwnd, piece):
 
 # -------------------- MAIN LOOP --------------------
 def run():
-    global current_fps, lines_cleared_total
+    global current_fps, lines_cleared_total, score
 
     hwnd = get_desktop_listview_hwnd()
     if not hwnd:
@@ -237,6 +248,9 @@ def run():
             if not collision(current_piece, 0, 1):
                 current_piece["y"] += 1
                 draw_piece(hwnd, current_piece)
+                
+                # Soft drop scoring
+                score += 1
             else:
                 # Piece locks
                 lock_piece(hwnd, current_piece)
