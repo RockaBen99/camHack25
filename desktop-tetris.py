@@ -2,6 +2,7 @@ import win32gui
 import time
 import random
 import keyboard
+import tkinter as tk
 
 # -------------------- GRID SETTINGS --------------------
 GRID_WIDTH, GRID_HEIGHT = 8, 12      # Grid size
@@ -97,6 +98,19 @@ def setup_icons(hwnd):
     print(f"Game icons: {len(game_icons)}, all others are hidden.")
     return True
 
+def show_game_over():
+    root = tk.Tk()
+    root.title("Tetris")
+    root.geometry("1000x500")
+    root.resizable(False, False)
+
+    label = tk.Label(root, text="GAME OVER", font=("Arial", 24), fg="red")
+    label.pack(expand=True)
+
+    button = tk.Button(root, text="Exit", command=root.destroy)
+    button.pack(pady=10)
+
+    root.mainloop()
 
 # -------------------- PIECE HELPERS --------------------
 def new_piece():
@@ -245,7 +259,7 @@ def run():
 
                 # Check game over immediately
                 if collision(current_piece):
-                    print("GAME OVER")
+                    show_game_over()
                     return
                 
             last = time.time()
