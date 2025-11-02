@@ -1,3 +1,9 @@
+'''
+1. made for windows
+2. before running, check desktop->view->show desktop icons
+3. uncheck desktop->view->align icons on the grid
+'''
+
 import win32gui, time, random, keyboard, tkinter as tk
 
 # -------------------- GRID SETTINGS --------------------
@@ -16,8 +22,6 @@ lines_cleared_total = 0
 
 # -------------------- ICON POOL --------------------
 ICON_POOL = []       # stack of icons not currently on the grid
-FALLING_ICONS = []   # Icons used by the current falling piece
-SETTLED_ICONS = []   # Icons currently locked on the grid
 
 # -------------------- WIN32 --------------------
 LVM_SETITEMPOSITION = 0x1000 + 15
@@ -180,7 +184,6 @@ def clear_lines(hwnd):
     return len(full_rows)
 
 
-
 # -------------------- INPUT --------------------
 def move_horizontal(hwnd, piece, dx):
     if not collision(piece, dx, 0):
@@ -214,9 +217,15 @@ def run():
 
     while True:
         # Keyboard input
-        if keyboard.is_pressed("left"): move_horizontal(hwnd, current_piece, -1); time.sleep(0.08)
-        if keyboard.is_pressed("right"): move_horizontal(hwnd, current_piece, 1); time.sleep(0.08)
-        if keyboard.is_pressed("up"): rotate(hwnd, current_piece); time.sleep(0.12)
+        if keyboard.is_pressed("left"): 
+            move_horizontal(hwnd, current_piece, -1)
+            time.sleep(0.08)
+        if keyboard.is_pressed("right"): 
+            move_horizontal(hwnd, current_piece, 1)
+            time.sleep(0.08)
+        if keyboard.is_pressed("up"): 
+            rotate(hwnd, current_piece)
+            time.sleep(0.12)
         if keyboard.is_pressed("down"):
             if not collision(current_piece, 0, 1):
                 current_piece["y"] += 1
