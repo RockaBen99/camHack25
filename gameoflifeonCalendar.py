@@ -130,7 +130,7 @@ def run_once(base_date=None):
     if base_date is None: base_date = datetime.date.today()
     # Get monday for the week we will use as columns
     while True:
-        time.sleep(10)
+        time.sleep(15)
         iso = base_date.isoweekday()
         monday = base_date - datetime.timedelta(days=(iso-1))
         start_iso, end_iso = week_interval_for(base_date)
