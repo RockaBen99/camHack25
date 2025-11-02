@@ -1,27 +1,21 @@
-import win32gui
-import time
-import random
-import keyboard
-import tkinter as tk
+import win32gui, time, random, keyboard, tkinter as tk
 
 # -------------------- GRID SETTINGS --------------------
-GRID_WIDTH, GRID_HEIGHT = 8, 12      # Grid size
+GRID_WIDTH, GRID_HEIGHT = 8, 12
 ICON_WIDTH, ICON_HEIGHT = 90, 90
-FPS = 1.0
 EMPTY = -1
 HIDDEN_POS = (-1000, -1000)
 
 # -------------------- SPEED SETTINGS --------------------
-INITIAL_FPS = 1        # initial drop interval (seconds)
-SPEEDUP_RATE = 0.9     # decrease in FPS per level
+INITIAL_FPS = 1        
+SPEEDUP_RATE = 0.9     # multiplier
 LINES_PER_LEVEL = 1    # lines to clear to increase speed
 
 current_fps = INITIAL_FPS
 lines_cleared_total = 0
 
-
 # -------------------- ICON POOL --------------------
-ICON_POOL = []       # Icons not currently on the grid
+ICON_POOL = []       # stack of icons not currently on the grid
 FALLING_ICONS = []   # Icons used by the current falling piece
 SETTLED_ICONS = []   # Icons currently locked on the grid
 
@@ -47,6 +41,7 @@ SHAPE_KEYS = list(SHAPES.keys())
 GRID = [[EMPTY]*GRID_WIDTH for _ in range(GRID_HEIGHT)]
 
 # -------------------- WIN32 HELPERS --------------------
+# kinda magic
 def get_desktop_listview_hwnd():
     progman = win32gui.FindWindow("Progman", None)
     shelldll = win32gui.FindWindowEx(progman, 0, "SHELLDLL_DefView", None)
@@ -81,7 +76,7 @@ def setup_icons(hwnd):
     
     # Check if enough icons exist
     if total < (GRID_WIDTH * GRID_HEIGHT) + 4:
-        print(f"Not enough desktop icons! Found {total}")
+        print(f"Not enough desktop icons! Found {total}, needed {(GRID_WIDTH * GRID_HEIGHT) + 4}")
         return False
 
     # Pick the game icons from all available icons
@@ -90,10 +85,7 @@ def setup_icons(hwnd):
 
     # Hide all unused icons
     for i in range(total):
-        if i in game_icons:
-            hide_icon(hwnd, i)  # They will be used dynamically
-        else:
-            hide_icon(hwnd, i)  # Unused icons are hidden completely
+        hide_icon(hwnd, i)
 
     print(f"Game icons: {len(game_icons)}, all others are hidden.")
     return True
@@ -112,12 +104,8 @@ def show_game_over():
 
     root.mainloop()
 
-# -------------------- PIECE HELPERS --------------------
+# -------------------- PIECE FUNCS --------------------
 def new_piece():
-    global ICON_POOL
-    if len(ICON_POOL) < 4:
-        # Refill pool from cleared icons if needed
-        random.shuffle(ICON_POOL)
     icons = [ICON_POOL.pop() for _ in range(4)]
     return {
         "type": random.choice(SHAPE_KEYS),
