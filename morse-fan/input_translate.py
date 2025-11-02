@@ -26,7 +26,7 @@ MORSE_CODE_DICT = { 'A':'.-', 'B':'-...',
 
 ## Morse code controls
 
-DOT_TIME = 1
+DOT_TIME = 2
 
 ## never change
 DASH_LENGTH = 3
@@ -34,8 +34,8 @@ INTRA_CHAR_WAIT = 1
 INTER_CHAR_WAIT = 3
 
 ## time taken for the fan to start and stop
-SPIN_UP_TIME = 0
-SPIN_DOWN_TIME = 0
+SPIN_UP_TIME = 1
+SPIN_DOWN_TIME = 1
 
 # global variables
 
