@@ -66,23 +66,28 @@ def move_icon_grid(hwnd, idx, gx, gy):
 # -------------------- DESKTOP SETUP --------------------
 def setup_icons(hwnd):
     global ICON_POOL
-    total = win32gui.SendMessage(hwnd, 0x1000+4, 0, 0)  # LVM_GETITEMCOUNT
-    if total < (GRID_WIDTH*GRID_HEIGHT)+4:
+    LVM_GETITEMCOUNT = 0x1000 + 4
+    total = win32gui.SendMessage(hwnd, LVM_GETITEMCOUNT, 0, 0)
+    
+    # Check if enough icons exist
+    if total < (GRID_WIDTH * GRID_HEIGHT) + 4:
         print(f"Not enough desktop icons! Found {total}")
         return False
-    # Pick REQUIRED icons for the game
-    game_icons = random.sample(range(total), (GRID_WIDTH*GRID_HEIGHT)+4)
-    ICON_POOL = game_icons[:]  # Initial pool
-    # Hide game icons, park the rest
-    park_x = (GRID_WIDTH + 1)*ICON_WIDTH
-    parked = 0
+
+    # Pick the game icons from all available icons
+    game_icons = random.sample(range(total), (GRID_WIDTH * GRID_HEIGHT) + 4)
+    ICON_POOL = game_icons[:]  # Initial pool for pieces
+
+    # Hide all unused icons
     for i in range(total):
         if i in game_icons:
-            hide_icon(hwnd, i)
+            hide_icon(hwnd, i)  # They will be used dynamically
         else:
-            move_icon(hwnd, i, park_x, parked*ICON_HEIGHT)
-            parked += 1
+            hide_icon(hwnd, i)  # Unused icons are hidden completely
+
+    print(f"Game icons: {len(game_icons)}, all others are hidden.")
     return True
+
 
 # -------------------- PIECE HELPERS --------------------
 def new_piece():
