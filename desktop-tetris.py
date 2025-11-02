@@ -14,6 +14,7 @@ HIDDEN_POS = (-1000, -1000)
 ICON_POOL = []       # Icons not currently on the grid
 FALLING_ICONS = []   # Icons used by the current falling piece
 SETTLED_ICONS = []   # Icons currently locked on the grid
+PREVIEW_ICONS = []  # 4 icons used to show next piece
 
 # -------------------- WIN32 --------------------
 LVM_SETITEMPOSITION = 0x1000 + 15
@@ -123,6 +124,17 @@ def draw_piece(hwnd, p):
         else:
             hide_icon(hwnd, icon)
 
+def draw_next_piece(hwnd, piece):
+    preview_x = GRID_WIDTH + 1  # one column right of grid
+    preview_y = 2 # two rows from top row
+
+    for icon, (dx, dy) in zip(piece["icons"], SHAPES[piece["type"]][piece["rotation"]]):
+        move_icon_grid(hwnd, icon, preview_x + dx, preview_y + dy)
+
+def clear_preview(hwnd):
+    for icon in PREVIEW_ICONS:
+        hide_icon(hwnd, icon)
+
 def lock_piece(hwnd, p):
     for (x, y), icon in zip(piece_blocks(p), p["icons"]):
         if y >= 0:
@@ -185,34 +197,48 @@ def run():
     if not setup_icons(hwnd):
         return
 
-    piece = new_piece()
-    draw_piece(hwnd, piece)
+    current_piece = new_piece()
+    next_piece = new_piece()
+    draw_piece(hwnd, current_piece)
+    draw_next_piece(hwnd, next_piece)
+
     last = time.time()
 
     while True:
         # Keyboard input
-        if keyboard.is_pressed("left"): move_horizontal(hwnd, piece, -1); time.sleep(0.08)
-        if keyboard.is_pressed("right"): move_horizontal(hwnd, piece, 1); time.sleep(0.08)
-        if keyboard.is_pressed("up"): rotate(hwnd, piece); time.sleep(0.12)
+        if keyboard.is_pressed("left"): move_horizontal(hwnd, current_piece, -1); time.sleep(0.08)
+        if keyboard.is_pressed("right"): move_horizontal(hwnd, current_piece, 1); time.sleep(0.08)
+        if keyboard.is_pressed("up"): rotate(hwnd, current_piece); time.sleep(0.12)
         if keyboard.is_pressed("down"):
-            if not collision(piece, 0, 1):
-                piece["y"] += 1
-                draw_piece(hwnd, piece)
+            if not collision(current_piece, 0, 1):
+                current_piece["y"] += 1
+                draw_piece(hwnd, current_piece)
             time.sleep(0.06)
 
         # Gravity
         if time.time()-last >= FPS:
-            if not collision(piece, 0, 1):
-                piece["y"] += 1
-                draw_piece(hwnd, piece)
+            if not collision(current_piece, 0, 1):
+                current_piece["y"] += 1
+                draw_piece(hwnd, current_piece)
             else:
-                lock_piece(hwnd, piece)
+                # Piece locks
+                lock_piece(hwnd, current_piece)
                 clear_lines(hwnd)
-                piece = new_piece()
-                if collision(piece):
+
+                # Move next_piece to current_piece
+                current_piece = next_piece
+                draw_piece(hwnd, current_piece)
+
+                # Spawn a new next_piece
+                next_piece = new_piece()
+                clear_preview(hwnd)
+                draw_next_piece(hwnd, next_piece)
+
+                # Check game over immediately
+                if collision(current_piece):
                     print("GAME OVER")
                     return
-                draw_piece(hwnd, piece)
+                
             last = time.time()
 
         time.sleep(0.01)
