@@ -10,6 +10,15 @@ FPS = 1.0
 EMPTY = -1
 HIDDEN_POS = (-1000, -1000)
 
+# -------------------- SPEED SETTINGS --------------------
+INITIAL_FPS = 1        # initial drop interval (seconds)
+SPEEDUP_RATE = 0.9     # decrease in FPS per level
+LINES_PER_LEVEL = 1    # lines to clear to increase speed
+
+current_fps = INITIAL_FPS
+lines_cleared_total = 0
+
+
 # -------------------- ICON POOL --------------------
 ICON_POOL = []       # Icons not currently on the grid
 FALLING_ICONS = []   # Icons used by the current falling piece
@@ -137,37 +146,37 @@ def lock_piece(hwnd, p):
             move_icon_grid(hwnd, icon, x, y)
 
 def clear_lines(hwnd):
-    global ICON_POOL
-    # 1. Find all full rows
+    global ICON_POOL, lines_cleared_total
     full_rows = [y for y in range(GRID_HEIGHT) if all(GRID[y][x] != EMPTY for x in range(GRID_WIDTH))]
     if not full_rows:
-        return
+        return 0
 
-    # 2. Collect icons to return to the pool
+    # Return icons to pool
     for y in full_rows:
         for x in range(GRID_WIDTH):
             ICON_POOL.append(GRID[y][x])
             hide_icon(hwnd, GRID[y][x])
 
-    # 3. Shift all non-cleared rows down
-    new_grid = [ [EMPTY]*GRID_WIDTH for _ in range(GRID_HEIGHT) ]
+    # Shift rows down
+    new_grid = [[EMPTY]*GRID_WIDTH for _ in range(GRID_HEIGHT)]
     new_y = GRID_HEIGHT - 1
-
-    # Start from the bottom row, copy non-full rows down
     for old_y in reversed(range(GRID_HEIGHT)):
         if old_y not in full_rows:
             new_grid[new_y] = GRID[old_y][:]
             new_y -= 1
-
-    # 4. Update the global grid
     for y in range(GRID_HEIGHT):
         GRID[y] = new_grid[y][:]
-
-    # 5. Redraw all settled icons
+    
+    # Redraw
     for y in range(GRID_HEIGHT):
         for x in range(GRID_WIDTH):
             if GRID[y][x] != EMPTY:
                 move_icon_grid(hwnd, GRID[y][x], x, y)
+
+    # Update total lines cleared
+    lines_cleared_total += len(full_rows)
+    return len(full_rows)
+
 
 
 # -------------------- INPUT --------------------
@@ -185,6 +194,8 @@ def rotate(hwnd, piece):
 
 # -------------------- MAIN LOOP --------------------
 def run():
+    global current_fps, lines_cleared_total
+
     hwnd = get_desktop_listview_hwnd()
     if not hwnd:
         print("Desktop icons not found!")
@@ -211,14 +222,18 @@ def run():
             time.sleep(0.06)
 
         # Gravity
-        if time.time()-last >= FPS:
+        if time.time() - last >= current_fps:
             if not collision(current_piece, 0, 1):
                 current_piece["y"] += 1
                 draw_piece(hwnd, current_piece)
             else:
                 # Piece locks
                 lock_piece(hwnd, current_piece)
-                clear_lines(hwnd)
+                lines_cleared = clear_lines(hwnd)
+
+                # Increase speed based on lines cleared
+                if lines_cleared_total // LINES_PER_LEVEL > (lines_cleared_total - lines_cleared) // LINES_PER_LEVEL:
+                    current_fps = max(0.1, current_fps * SPEEDUP_RATE)  # don't go below 0.1s per step
 
                 # Move next_piece to current_piece
                 current_piece = next_piece
