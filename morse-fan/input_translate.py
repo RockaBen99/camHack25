@@ -26,7 +26,7 @@ MORSE_CODE_DICT = { 'A':'.-', 'B':'-...',
 
 ## Morse code controls
 
-DOT_TIME = 2
+DOT_TIME = 1
 
 ## never change
 DASH_LENGTH = 3
@@ -45,7 +45,9 @@ __run_mainloop = True
 def __mainloop():
     while __run_mainloop:
         while len(__morse_code_queue) > 0 and __run_mainloop:
-            __decode(__morse_code_queue.pop(0))
+            char = __morse_code_queue.pop(0)
+            __decode(char)
+            print(char)
         sleep(0.01)
 
 mainloop_thread = threading.Thread(target=__mainloop)
@@ -72,7 +74,10 @@ def __dash():
 
 def enqueue_morse_of_char(pressed_key: str):
     if pressed_key in MORSE_CODE_DICT.keys():
-        __morse_code_queue.append(MORSE_CODE_DICT[pressed_key])
+        enqueue_morse(MORSE_CODE_DICT[pressed_key])
+        
+def enqueue_morse(morse_char: str):
+    __morse_code_queue.append(morse_char)
 
 def __decode(morse: str):
     for beep in morse:
