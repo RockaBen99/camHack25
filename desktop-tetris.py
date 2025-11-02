@@ -14,7 +14,6 @@ HIDDEN_POS = (-1000, -1000)
 ICON_POOL = []       # Icons not currently on the grid
 FALLING_ICONS = []   # Icons used by the current falling piece
 SETTLED_ICONS = []   # Icons currently locked on the grid
-PREVIEW_ICONS = []  # 4 icons used to show next piece
 
 # -------------------- WIN32 --------------------
 LVM_SETITEMPOSITION = 0x1000 + 15
@@ -131,10 +130,6 @@ def draw_next_piece(hwnd, piece):
     for icon, (dx, dy) in zip(piece["icons"], SHAPES[piece["type"]][piece["rotation"]]):
         move_icon_grid(hwnd, icon, preview_x + dx, preview_y + dy)
 
-def clear_preview(hwnd):
-    for icon in PREVIEW_ICONS:
-        hide_icon(hwnd, icon)
-
 def lock_piece(hwnd, p):
     for (x, y), icon in zip(piece_blocks(p), p["icons"]):
         if y >= 0:
@@ -231,7 +226,6 @@ def run():
 
                 # Spawn a new next_piece
                 next_piece = new_piece()
-                clear_preview(hwnd)
                 draw_next_piece(hwnd, next_piece)
 
                 # Check game over immediately
